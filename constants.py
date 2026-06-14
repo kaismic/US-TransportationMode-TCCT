@@ -8,6 +8,8 @@ RAW_DATA_EXTRACTED_PATH = DATA_PATH / "raw_data"
 CLEANED_DATA_DIR = "cleaned_data"
 TRANSFORMED_DATA_DIR = "transformed_data"
 MODELS_DIR = "models"
+REPORTS_DIR = "reports"
+RUNS_DIR = "runs"
 
 class RawDataFieldLocation:
     TIME: Final = 0

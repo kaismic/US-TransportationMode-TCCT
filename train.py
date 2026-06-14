@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 from model_config import ModelConfig
 import utils
@@ -13,6 +14,7 @@ class Train:
 
     def __init__(self) -> None:
         self.config = ModelConfig.from_yaml()
+        self.config.prepare_run_directory()
 
     def create_dataframe(self) -> None:
         """
@@ -53,6 +55,7 @@ class Train:
         self.create_dataframe()
 
         os.makedirs(self.config.models_path, exist_ok=True)
+        os.makedirs(self.config.reports_path, exist_ok=True)
 
         from sklearn.ensemble import RandomForestClassifier
         from sklearn.neural_network import MLPClassifier
@@ -79,6 +82,20 @@ class Train:
             save_onnx_model(model, out_path)
             print(f"Model trained and saved to {out_path}")
             iter.update()
+
+        report = {
+            "algorithms": algs,
+            "class_counts": {
+                str(label): int(count)
+                for label, count in y.value_counts().sort_index().items()
+            },
+            "feature_names": list(x.columns),
+            "rows": int(len(self.df)),
+        }
+        report_path = self.config.reports_path / "training-summary.json"
+        report_path.write_text(
+            json.dumps(report, indent=2, sort_keys=True), encoding="utf-8"
+        )
 
         print("All training and models generation complete.")
 

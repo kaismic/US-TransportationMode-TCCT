@@ -15,6 +15,7 @@ class Preprocess:
 
     def __init__(self) -> None:
         self.config = ModelConfig.from_yaml()
+        self.config.prepare_run_directory()
 
     def extract_raw_data(self) -> None:
         """

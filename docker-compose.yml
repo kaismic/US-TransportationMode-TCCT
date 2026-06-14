@@ -6,7 +6,6 @@ x-common-config: &common-config
   volumes:
     - ./data:/app/data
     - ./logs:/app/logs
-    - ./models:/app/models
   environment:
     - PYTHONUNBUFFERED=1
   tty: true

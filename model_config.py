@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Any, Dict, Iterator, List
 from pathlib import Path
 import constants
 import hashlib
@@ -19,6 +19,8 @@ class ModelConfig:
     cleaned_data_path: Path = field(init=False, default_factory=Path)
     transformed_data_path: Path = field(init=False, default_factory=Path)
     models_path: Path = field(init=False, default_factory=Path)
+    reports_path: Path = field(init=False, default_factory=Path)
+    run_path: Path = field(init=False, default_factory=Path)
     sensor_features_in_order: List[str] = field(init=False, default_factory=list)
 
     @classmethod
@@ -35,28 +37,60 @@ class ModelConfig:
 
     def __post_init__(self) -> None:
         self.id = self.generate_config_id()
-        self.cleaned_data_path = constants.DATA_PATH / self.id / constants.CLEANED_DATA_DIR
-        self.transformed_data_path = constants.DATA_PATH / self.id / constants.TRANSFORMED_DATA_DIR
-        self.models_path = constants.ROOT_PATH / constants.MODELS_DIR / self.id
+        self.run_path = constants.DATA_PATH / constants.RUNS_DIR / self.id
+        self.cleaned_data_path = self.run_path / constants.CLEANED_DATA_DIR
+        self.transformed_data_path = self.run_path / constants.TRANSFORMED_DATA_DIR
+        self.models_path = self.run_path / constants.MODELS_DIR
+        self.reports_path = self.run_path / constants.REPORTS_DIR
         self.sensor_features_in_order = [
             f"{sensor}#{feature}"
             for sensor in self.sensors
             for feature in self.features
         ]
-        print(self)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "features": list(self.features),
+            "sensors": list(self.sensors),
+            "transport_modes": dict(self.transport_modes),
+            "window_next_step_seconds": self.window_next_step_seconds,
+            "window_size_seconds": self.window_size_seconds,
+        }
 
     def generate_config_id(self) -> str:
-        sorted_transport_modes = sorted(self.transport_modes.keys())
-        sorted_sensors = sorted(self.sensors)
-        sorted_features = sorted(self.features)
-        hash_input = ''.join([
-            *sorted_transport_modes,
-            *sorted_sensors,
-            *sorted_features,
-            hex(self.window_size_seconds),
-            hex(self.window_next_step_seconds),
-        ])
-        return hashlib.sha256(hash_input.encode()).hexdigest()[:8]
+        hash_input = "".join(_stringified_values(self.to_dict()))
+        return hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+
+    def prepare_run_directory(self) -> Path:
+        self.run_path.mkdir(parents=True, exist_ok=True)
+        config_path = self.run_path / "model.config.yaml"
+        canonical_yaml = yaml.safe_dump(
+            self.to_dict(),
+            sort_keys=True,
+            default_flow_style=False,
+            allow_unicode=False,
+        )
+        if config_path.exists():
+            if config_path.read_text(encoding="utf-8") != canonical_yaml:
+                raise ValueError(
+                    f"Configuration hash collision or modified config copy: {config_path}"
+                )
+        else:
+            config_path.write_text(canonical_yaml, encoding="utf-8")
+        return self.run_path
+
+
+def _stringified_values(value: Any) -> Iterator[str]:
+    if isinstance(value, dict):
+        for key in sorted(value):
+            yield from _stringified_values(value[key])
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _stringified_values(item)
+    elif value is None:
+        yield "None"
+    else:
+        yield str(value)
 
 
 if __name__ == '__main__':
