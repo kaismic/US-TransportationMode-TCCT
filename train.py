@@ -2,6 +2,7 @@ import os
 import json
 import pandas as pd
 from model_config import ModelConfig
+from dataset_reuse import materialize_compatible_transformed
 import utils
 from tqdm import tqdm
 from skl2onnx import convert_sklearn
@@ -23,7 +24,16 @@ class Train:
         - The DataFrame will have a 'transport_mode' column indicating the transport mode for each window, derived from the file name.
         """
 
+        if not materialize_compatible_transformed(self.config):
+            from preprocess import Preprocess
+
+            Preprocess(self.config).transform_files()
         input_files = list(self.config.transformed_data_path.rglob("*.csv"))
+        if not input_files:
+            raise FileNotFoundError(
+                "No transformed data is available for this configuration. "
+                "Run preprocess.py --all first."
+            )
         print(f"Total files to read: {len(input_files)}")
 
         result_df = pd.DataFrame()

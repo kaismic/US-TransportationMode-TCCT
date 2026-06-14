@@ -1,6 +1,10 @@
 import argparse
 import re
 from model_config import ModelConfig
+from dataset_reuse import (
+    materialize_compatible_cleaned,
+    materialize_compatible_transformed,
+)
 
 import pandas as pd
 import constants
@@ -13,8 +17,8 @@ import utils
 class Preprocess:
     config: ModelConfig
 
-    def __init__(self) -> None:
-        self.config = ModelConfig.from_yaml()
+    def __init__(self, config: ModelConfig | None = None) -> None:
+        self.config = config or ModelConfig.from_yaml()
         self.config.prepare_run_directory()
 
     def extract_raw_data(self) -> None:
@@ -82,6 +86,8 @@ class Preprocess:
         - Select files to process based on transport modes
         """
 
+        if materialize_compatible_cleaned(self.config):
+            return
         os.makedirs(self.config.cleaned_data_path, exist_ok=True)
 
         processing_files = list(constants.RAW_DATA_EXTRACTED_PATH.rglob("*.csv"))
@@ -158,6 +164,9 @@ class Preprocess:
         """
         Transform cleaned data files into a format suitable for machine learning models.
         """
+        if materialize_compatible_transformed(self.config):
+            return
+        materialize_compatible_cleaned(self.config)
         os.makedirs(self.config.transformed_data_path, exist_ok=True)
 
         processing_files = list(self.config.cleaned_data_path.rglob("*.csv"))
@@ -202,9 +211,14 @@ if __name__ == "__main__":
 
     p = Preprocess()
 
-    if args.extract or args.all:
+    if args.extract:
         p.extract_raw_data()
-    if args.clean or args.all:
+    if args.all and not materialize_compatible_transformed(p.config):
+        if not materialize_compatible_cleaned(p.config):
+            p.extract_raw_data()
+            p.clean_files()
+        p.transform_files()
+    if args.clean:
         p.clean_files()
-    if args.transform or args.all:
+    if args.transform:
         p.transform_files()
