@@ -25,7 +25,7 @@ class Preprocess:
         """
         Extract raw data from the downloaded tar.gz file.
         """
-        raw_data_path = constants.DATA_PATH / constants.RAW_DATA_FILE_NAME
+        raw_data_path = self.config.raw_data_path
 
         if not os.path.isfile(raw_data_path):
             print(f"Raw data file not found at {raw_data_path}. Please download it first.")
@@ -38,7 +38,7 @@ class Preprocess:
         with tarfile.open(raw_data_path, "r:gz") as tar:
             tar.extractall(path=constants.DATA_PATH)
 
-        print(f"Extraction complete. Extracted files are located at {constants.RAW_DATA_EXTRACTED_PATH}.")
+        print(f"Extraction complete. Extracted files are located at {self.config.raw_data_extracted_path}.")
 
     def clean_file(self, input_path: os.PathLike, output_path: os.PathLike) -> None:
         """
@@ -90,7 +90,7 @@ class Preprocess:
             return
         os.makedirs(self.config.cleaned_data_path, exist_ok=True)
 
-        processing_files = list(constants.RAW_DATA_EXTRACTED_PATH.rglob("*.csv"))
+        processing_files = list(self.config.raw_data_extracted_path.rglob("*.csv"))
         print(f"Total files to process: {len(processing_files)}")
 
         iter =  tqdm(processing_files, desc="Cleaning files")
@@ -101,7 +101,7 @@ class Preprocess:
             if transport_mode.lower() not in self.config.transport_modes:
                 continue
 
-            output_file_path = self.config.cleaned_data_path / input_path.relative_to(constants.RAW_DATA_EXTRACTED_PATH)
+            output_file_path = self.config.cleaned_data_path / input_path.relative_to(self.config.raw_data_extracted_path)
             os.makedirs(output_file_path.parent, exist_ok=True)
 
             self.clean_file(input_path, output_file_path)

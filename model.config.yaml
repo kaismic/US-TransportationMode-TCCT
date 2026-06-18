@@ -1,8 +1,36 @@
-features: ['mean', 'std', 'min', 'max']
-sensors: ['accelerometer', 'gyroscope', 'linear_acceleration', 'magnetic_field']
-transport_modes:
+dataset:
+  raw_data_dir: raw_data
+  raw_data_file_name: raw_data.tar.gz
+  runs_dir: runs
+
+features:
+  aggregations:
+    - mean
+    - std
+    - min
+    - max
+  sensors:
+    - accelerometer
+    - gyroscope
+    - linear_acceleration
+    - magnetic_field
+  step_seconds: 5
+  window_seconds: 10
+
+labels:
   bus: 0
   car: 1
   train: 2
-window_next_step_seconds: 5
-window_size_seconds: 10
+
+schema_version: 1
+
+training:
+  cross_validation_folds: 5
+  holdout_splits: 5
+  model_families:
+    - random_forest
+    - mlp
+  n_jobs: -1
+  random_seed: 42
+  timeout_seconds: null
+  trials: 50

@@ -21,6 +21,27 @@ docker compose --profile preprocess up --build
 docker compose --profile train up --build
 ```
 
+`model.config.yaml` follows the same high-level shape as the NOR-TMD pipeline:
+
+```yaml
+dataset:
+  raw_data_dir: raw_data
+  raw_data_file_name: raw_data.tar.gz
+  runs_dir: runs
+features:
+  aggregations: [mean, std, min, max]
+  sensors: [accelerometer, gyroscope, linear_acceleration, magnetic_field]
+  step_seconds: 5
+  window_seconds: 10
+labels:
+  bus: 0
+  car: 1
+  train: 2
+training:
+  model_families: [random_forest, mlp]
+  trials: 50
+```
+
 Generated data is grouped by the full SHA-256 hash of the canonical training
 configuration:
 
@@ -49,6 +70,24 @@ transformation. Each derived directory contains `reuse.json` identifying its
 source run. With no compatible saved run, preprocessing proceeds from the raw
 dataset as usual.
 
+Training uses Optuna to tune the configured model families against macro F1.
+The US-TMD file naming convention is used to infer the participant/user id, so
+holdout and cross-validation splits avoid leaking a user across train and
+validation whenever enough groups are available. The best model is retrained on
+all transformed rows and exported to:
+
+```text
+data/runs/<config-sha256>/models/best_model.onnx
+data/runs/<config-sha256>/reports/training-summary.json
+data/runs/<config-sha256>/reports/optuna-trials.csv
+```
+
+For quick tuning smoke tests, override the configured trial count:
+
+```sh
+python train.py --trials 2
+```
+
 ## Development container
 
 Open this project directory in VS Code and run **Dev Containers: Reopen in Container**. The development service bind-mounts the project at `/app`, installs the pipeline requirements during the image build, and installs the configured editor tools after the container is created.
@@ -58,7 +97,7 @@ The same service can be verified from a terminal:
 ```sh
 docker compose build dev
 docker compose up -d dev
-docker compose exec dev python -c "import pandas, sklearn, skl2onnx, yaml"
+docker compose exec dev python -c "import optuna, pandas, sklearn, skl2onnx, yaml"
 docker compose down
 ```
 
